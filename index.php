@@ -100,7 +100,7 @@ function __colourHash($content, $size=3){
 	$string = "";
 	for($i=0; $i<($size%6); $i++){
 		$colorHash1 = substr($hash,$i*6,6); $colorHash2 = substr($hash2,$i*6,6);
-		$string .= "<span style='background-color:#$colorHash1;color:#$colorHash2'>#</span>";
+		$string .= "<span style='background-color:#$colorHash1;color:#$colorHash2;font-weight:bold;'>=</span>";
 	}	
 	return $string;
 }

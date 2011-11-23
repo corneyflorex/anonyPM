@@ -1,6 +1,6 @@
 <?php
 
-	// PROJECT ANON REG KIT	
+	// PROJECT ANON REG KIT	V1.0 (Nov 2011)
 	// About: This is a care package for php programmers as a starting point for
 	//			creating sites which are friendly for anons to use
 	// What is anon friendly? Well for starters it requires no registration.
@@ -15,6 +15,7 @@
 		$break=Explode('/',$_SERVER["SCRIPT_NAME"]);
 		$pfile=$break[count($break)-1];
 		readfile($pfile);
+		//readfile(__FILE__);
 		exit();
 	}
 	//95CHAR############################################################################95CHAR
@@ -105,6 +106,7 @@
 				$sTempFileName = $_FILES['image']['tmp_name']; // temporary file at server side
 				$oTempFile = fopen($sTempFileName, "r");
 				$sBinaryImage = fread($oTempFile, fileSize($sTempFileName));
+				//$sBinaryImage = file_get_contents($_FILES['image']['tmp_name']); // Should we use this instead? for 'read image'
 
 				// Try to read image
 				$nOldErrorReporting = error_reporting(E_ALL & ~(E_WARNING)); // ingore warnings
@@ -180,6 +182,7 @@
 	}
 	
 	$width=$width."px";
+	//Are you sure $link, $tripcode and $text are safe? May want to htmlspecialchars(..., ENT_QUOTES)
 	return "							
 				<div style='
 							width:$width; 

@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
 <meta charset="UTF-8"/>
 
-<title> TaskBoard</title>
+<title>AnonyPM</title>
 
 <link rel="icon" href="favicon.ico" type="image/x-icon">
 <link rel="shortcut icon" href="favicon.ico" type="image/x-icon"> 
@@ -37,7 +37,15 @@
 					<INPUT type='submit' value='Enter Inbox'> 
 				</FORM>
 				<br>
-				<p><?php echo md5(rand().rand().rand().rand())?></p>
+				<?php 
+				//generate a new potential inbox name
+				$wordbit = array('axe','aye','ark','air','doc','emu','gal','gar','git','hoe','gig','fab','wiz','sew','rub','man','map','mad','uke','vow','kiss','blob','blind','barf','chin','coup','claw','croc','cope');
+				shuffle($wordbit);
+				$newusername = $wordbit[0].$wordbit[1].substr(rand(),0,rand(2,4));
+				$newpassword = substr(md5(rand()),0,rand(6,12));
+				?>
+				<h4>Can't think of a user/pass combination?:</h4>
+				<p> <?php echo 'User: '.$newusername.' | Pass: '.$newpassword?> | (<a href='<?php echo "?x=INBOX+$newusername+$newpassword" ?>' target='_blank'>Open</a>)</p>
 				<br>
 				
 				<a href="?x=PAGE+about<?php echo __SID_URL()?>" >About</a> | <a href="?x=PAGE+writemessage<?php echo __SID_URL()?>" >Write Message</a> | <a href="?x=PAGE+addressbook<?php echo __SID_URL()?>" >AddressBook</a> | <a href="?<?php echo __SID_URL()?>#query" >Query</a>
@@ -64,7 +72,8 @@
 					<h3><a href="?x=INBOX<?php echo __SID_URL()?>" >Check Inbox</a> | <a href='?x=PAGE+writemessage&from=<?php echo $_SESSION['userID'];?><?php echo __SID_URL()?>' target='_blank'>Send PM</a> |  <a href="?x=LOGOUT<?php echo __SID_URL()?>" >logout</a> | <a href="?x=NUKE<?php echo __SID_URL()?>" >Nuke/Clear Inbox</a></h3>
 					
 					<br>
-					<h3 style="text-align:center;" >Your full AnonyPM Address is: (<a href='?x=PAGE+writemessage&to=<?php echo $_SESSION['userID'];?>' target='_blank'>share url</a>) <?php echo $_SESSION['userID'];?></h3>
+					<h3 style="text-align:center;" >Your full AnonyPM Address is:</h3>
+					<h4><?php echo  __colourHash($_SESSION['userID'])." ".htmlentities($_SESSION['userID']);?> (<a href='?x=PAGE+writemessage&to=<?php echo  htmlentities(urlencode($_SESSION['userID']));?>' target='_blank'>share url</a>)</h3>
 					
 					<?php
 						$userIDparts = explode('!', $_SESSION['userID']);
@@ -74,10 +83,10 @@
 						$userid_lv3 = $userIDparts[0]."!".substr($userIDparts[1],0,30);
 						
 						echo "<div style='padding:20px; text-align:left; ' >";
-						echo "Also valid (longer == more secure):<br>";
-						echo "(<a href='?x=PAGE+writemessage&to=".$userid_lv1."' target='_blank'>share url</a>) ".$userid_lv1."<br>";
-						echo "(<a href='?x=PAGE+writemessage&to=".$userid_lv2."' target='_blank'>share url</a>) ".$userid_lv2."<br>";
-						echo "(<a href='?x=PAGE+writemessage&to=".$userid_lv3."' target='_blank'>share url</a>) ".$userid_lv3."<br>";
+						echo "Equally valid address (longer == more secure):<br>";
+						echo __colourHash($userid_lv1)." (<a href='?x=PAGE+writemessage&to=".$userid_lv1."' target='_blank'>share url</a>) ".$userid_lv1."<br>";
+						echo __colourHash($userid_lv2)." (<a href='?x=PAGE+writemessage&to=".$userid_lv2."' target='_blank'>share url</a>) ".$userid_lv2."<br>";
+						echo __colourHash($userid_lv3)." (<a href='?x=PAGE+writemessage&to=".$userid_lv3."' target='_blank'>share url</a>) ".$userid_lv3."<br>";
 						echo "</div>";
 						}
 					?>
@@ -104,12 +113,6 @@
 				
 				<br>
 				
-				<p> Can't think of a password? Then try grabbing a few char from here! </p>
-				
-				<p><?php echo substr(hash("sha256",rand().rand().rand().rand()),0,110); ?> </p>
-				
-				<br>
-				
 				<hr>
 				<h3>Why I cannot offer encryption or any kind of security (CONTENT FROM SIMPLEPM)</h3>
 				<div class="instructions">It seems that some people believe I should have offered some kind of encryption or security for this service. The reason I will NEVER offer security is simple:	<b>I don't want to make people think they are more secure than they actually are.</b><br><br>
@@ -125,12 +128,9 @@
 		<div class="cloudbox"  style="margin: 0 auto; width:100%; padding-top:10px; padding-bottom:10px; ">
 			<FORM action='?x=send<?php echo __SID_URL()?>' method='post' enctype='multipart/form-data'>
 				<P>
-					Send To*:<br /> <INPUT type='text' size=50 name='to'value='<?php if(isset($_REQUEST['to'])){echo $_REQUEST['to'];}?>'><br />
-					Sender ID or email (optional):<br /> <INPUT type='text' size=50 name='from' value='<?php if(isset($_REQUEST['from'])){echo $_REQUEST['from'];}?>'><br />
+					Send To*:<br /> <INPUT type='text' size=50 name='to' value='<?php if(isset($_REQUEST['to'])){echo htmlentities($_REQUEST['to']);}?>'><br />
+					Sender ID or email (optional):<br /> <INPUT type='text' size=50 name='from' value='<?php if(isset($_REQUEST['from'])){echo htmlentities($_REQUEST['from']);}?>'><br />
 				
-					<!-- 
-					Title*:<br /> <INPUT type='text' size=50 name='title'value='<?php if(isset($_REQUEST['title'])){echo $_REQUEST['title'];}?>'><br />
-					-->
 					Message*:<br />	<textarea class='' rows=10 cols=50 name='message'><?php if(isset($_REQUEST['message'])){echo htmlentities($_REQUEST['message'],null, 'utf-8');}?></textarea><br />			
 					<!-- 
 					<label for='file'>Image:</label><br /> <input type='file' name='image' />

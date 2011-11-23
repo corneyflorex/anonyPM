@@ -96,11 +96,11 @@ function __hashID($user,$password="") {
 
 // This function is to help assist in visual IDing of names.
 function __colourHash($content, $size=3){
-	$hash = md5($content);
+	$hash = hash("sha256",$content); $hash2 = hash("sha256",$content."!");
 	$string = "";
 	for($i=0; $i<($size%6); $i++){
-		$colorHash = substr($hash,$i*6,6);
-		$string .= "<span style='background-color:#$colorHash;'>_</span>";
+		$colorHash1 = substr($hash,$i*6,6); $colorHash2 = substr($hash2,$i*6,6);
+		$string .= "<span style='background-color:#$colorHash1;color:#$colorHash2'>#</span>";
 	}	
 	return $string;
 }
@@ -142,7 +142,7 @@ function __colourHash($content, $size=3){
 								<br/>
 								";
 			}else{
-				$fromIDdisplay = "";
+				$fromIDdisplay = "From: Anonymous (No Address)<br/>";
 			}
 			
 			$DisplayContent = $DisplayContent."
@@ -207,7 +207,7 @@ function __colourHash($content, $size=3){
 			
 				$fromIDdisplay = "<p>From: ".htmlentities(stripslashes($msg['fromID']),null, 'utf-8')." (<a href='?x=PAGE+writemessage&to=".htmlentities(urlencode($msg['fromID']),null, 'utf-8')."&from=".htmlentities(urlencode($currUserID),null, 'utf-8')."' target='_blank'>Reply</a>) </p>";
 			}else{
-				$fromIDdisplay = "";
+				$fromIDdisplay = "<p>From: Anonymous (No Address)</p>";
 			}
 			
 			$DisplayContent = $DisplayContent."

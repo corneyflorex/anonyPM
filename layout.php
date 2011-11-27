@@ -43,12 +43,13 @@
 				shuffle($wordbit);
 				$newusername = $wordbit[0].$wordbit[1].substr(rand(),0,rand(2,4));
 				$newpassword = substr(md5(rand()),0,rand(6,12));
+				$newuserpassperm = __hashID($newusername,$newpassword);
 				?>
 				<h4>Can't think of a user/pass combination?:</h4>
-				<p> <?php echo 'User: '.$newusername.' | Pass: '.$newpassword?> | (<a href='<?php echo "?x=INBOX+$newusername+$newpassword" ?>' target='_blank'>Open</a>)</p>
+				<p> <?php echo __colourHash($newuserpassperm[0]).' User: '.$newusername.' | Pass: '.$newpassword?> | (<a href='<?php echo "?x=INBOX+$newusername+$newpassword" ?>' target='_blank'>Open</a>)</p>
 				<br>
 				
-				<a href="?x=PAGE+about<?php echo __SID_URL()?>" >About</a> | <a href="?x=PAGE+writemessage<?php echo __SID_URL()?>" >Write Message</a> | <a href="?x=PAGE+addressbook<?php echo __SID_URL()?>" >AddressBook</a> | <a href="?<?php echo __SID_URL()?>#query" >Query</a>
+				<a href="?x=PAGE+about<?php echo __SID_URL()?>" >About</a> | <a href="?x=PAGE+writemessage<?php echo __SID_URL()?>" >Write Message</a> | <a href="?x=PAGE+addressbook<?php echo __SID_URL()?>" >AddressBook</a> | <a href="#query" >Query</a>
 			</div>			
 		</div>
 		<?php } ?>
@@ -59,7 +60,7 @@
 		<div class="cloudbox" style="margin: 0 auto; width:100%; padding-top:20px; padding-bottom:20px; ">
 			<a href="?<?php echo __SID_URL()?>" ><h1>AnonyPM</h1></a> No registration required
 			<br>
-			<a href="?x=PAGE+about<?php echo __SID_URL()?>" >About</a> | <a href="?x=PAGE+writemessage<?php echo __SID_URL()?>" >Write Message</a> | <a href="?x=PAGE+addressbook<?php echo __SID_URL()?>" >AddressBook</a> | <a href="?<?php echo __SID_URL()?>#query" >Query</a>
+			<a href="?x=PAGE+about<?php echo __SID_URL()?>" >About</a> | <a href="?x=PAGE+writemessage<?php echo __SID_URL()?>" >Write Message</a> | <a href="?x=PAGE+addressbook<?php echo __SID_URL()?>" >AddressBook</a> | <a href="#query" >Query</a>
 		</div>			
 		<?php } ?>
 		
@@ -73,21 +74,16 @@
 					
 					<br>
 					<h3 style="text-align:center;" >Your full AnonyPM Address is:</h3>
-					<h4><?php echo  __colourHash($_SESSION['userID'])." ".htmlentities($_SESSION['userID']);?> (<a href='?x=PAGE+writemessage&to=<?php echo  htmlentities(urlencode($_SESSION['userID']));?>' target='_blank'>share url</a>)</h3>
-					
+					<h4><?php echo  __colourHash($_SESSION['userID'])." ".htmlentities($_SESSION['userID']);?></h3>
+					<h5><a href='?x=PAGE+writemessage&to=<?php echo  htmlentities(urlencode($_SESSION['userID']));?>' target='_blank'>Give this url to other people, so they can reach you.</a></h5>
 					<?php
 						$userIDparts = explode('!', $_SESSION['userID']);
 						if(isset($userIDparts[1])){ 
-						$userid_lv1 = $userIDparts[0]."!".substr($userIDparts[1],0,10);
-						$userid_lv2 = $userIDparts[0]."!".substr($userIDparts[1],0,20);
-						$userid_lv3 = $userIDparts[0]."!".substr($userIDparts[1],0,30);
-						
-						echo "<div style='padding:20px; text-align:left; ' >";
-						echo "Equally valid address (longer == more secure):<br>";
-						echo __colourHash($userid_lv1)." (<a href='?x=PAGE+writemessage&to=".$userid_lv1."' target='_blank'>share url</a>) ".$userid_lv1."<br>";
-						echo __colourHash($userid_lv2)." (<a href='?x=PAGE+writemessage&to=".$userid_lv2."' target='_blank'>share url</a>) ".$userid_lv2."<br>";
-						echo __colourHash($userid_lv3)." (<a href='?x=PAGE+writemessage&to=".$userid_lv3."' target='_blank'>share url</a>) ".$userid_lv3."<br>";
-						echo "</div>";
+							$userid_lv1 = $userIDparts[0]."!".substr($userIDparts[1],0,10);
+							echo "<div style='padding:20px; text-align:left; ' >";
+							echo "Also valid: ";
+							echo __colourHash($userid_lv1)." (<a href='?x=PAGE+writemessage&to=".$userid_lv1."' target='_blank'>share url</a>) ".$userid_lv1."<br>";
+							echo "</div>";
 						}
 					?>
 				</div>			 

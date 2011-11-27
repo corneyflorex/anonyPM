@@ -15,7 +15,122 @@ class anonyPM {
 	/*
 	* Check who is online in a particular page.
 	*/
+	
+	public function isOnlineUpdate( $userID_perm = array() ){
+	
+		foreach($userID_perm as $key => $hashID){
+			// Update online statuscode
+			$sql = "INSERT OR REPLACE INTO usersonline (userA, timestamp)
+						VALUES (?,?)
+						";
+			//Create the array we will store in the database
+			$sql_data = array(
+				'userA' => $hashID,
+				'timestamp' => time(),
+			);
+			//Data types to put into the database
+			$sql_dataType = array(
+				'userA' => 'STR',
+				'timestamp' => 'INT',
+			);
+					
+			Database::query($sql,$sql_data,$sql_dataType);
+		}
+		
+		// DELETE any old entries
+		$sql = "DELETE FROM usersonline WHERE timestamp < ".strtotime( "-5 minutes" , time() );
+		Database::query($sql,array(),array());
+	}
 
+    public function openedWindowIM_Update($userA, $userB=NULL, $mode = "isonline"){
+		// Update open IM window statuscode
+		$sql = "INSERT OR REPLACE INTO openedimwindow (userA, userB, timestamp)
+					VALUES (?,?,?)";
+		//Create the array we will store in the database
+		$sql_data = array(
+			'userA' => $userA,
+			'userB' => $userB,
+			'timestamp' => time()
+		);
+		//Data types to put into the database
+		$sql_dataType = array(
+			'userA' => 'STR',
+			'userB' => 'STR',
+			'timestamp' => 'INT'
+		);
+		Database::query($sql,$sql_data,$sql_dataType);
+		
+		// DELETE any old entries
+		$sql = "DELETE FROM usersonline WHERE timestamp < ".strtotime( "-30 minutes" , time() );
+		Database::query($sql,array(),array());
+		
+        return 1;
+    }
+	
+	/*
+		Find Who Open your IM window, and if a person is online.
+	*/
+    public function getstatus($userA_array=array(), $mode="isonline", $limit=10){
+	
+		/*
+			Prepare toID
+		*/
+		
+		// string should be placed into an array instead.
+		if (!is_array($userA_array)) {$userA_array = array($userA_array);}//better use !is_array here? - yea
+		// if not array, then make it an array
+        if(!is_array($userA_array)) {$userA_array = array();}
+
+        if(!empty($userA_array)){
+            $sql_where_hashid = "userA IN ('".implode("','", $userA_array)."')"; // Make sure to check that its alphanumeric(plus '!') before inserting ID in.
+        } else {
+            $sql_where_hashid = '0=0';
+        }
+		
+		
+		/*
+			construct the query
+		*/
+		if($mode == "isonline"){
+			// filter out old entries
+			$timefilter = "timestamp > ".strtotime( "-5 minutes" , time() );
+			// Update open IM window statuscode
+			$sql = "SELECT DISTINCT userA, timestamp 
+					FROM usersonline
+					WHERE
+					$sql_where_hashid
+					AND
+					$timefilter
+					ORDER BY timestamp DESC
+					LIMIT ?
+					";	
+		} else if ($mode == "windowopen"){
+			// filter out old entries
+			$timefilter = "timestamp > ".strtotime( "-1 minutes" , time() );
+			// Update open IM window statuscode
+			$sql = "SELECT userA, DISTINCT userB 
+					FROM status
+					WHERE
+					$sql_where_hashid
+					AND
+					$timefilter
+					ORDER BY timestamp DESC
+					LIMIT ?
+					";					
+		}
+		
+		/*
+			Run Query
+		*/
+		$rs = Database::query($sql,array("limit"=>$limit),array("limit"=>"INT"));
+		
+        // If something failed.. return no messages
+        //if(!$rs) return array(); //Exception usually indicates some serious problem which should not be ignored!
+
+        // TODO: Get the tags for each task!
+        return $rs;
+    }
+	
     /**
      * Creates a new task and adds it to the database.
      * 
@@ -87,84 +202,6 @@ class anonyPM {
         if(!$task_id) {echo " PROBLEM SENDING MESSAGE! WHAT ARE YOU GOING TO DO ABOUT IT? D: <br/>";return false;}
 
         return $task_id;
-    }
-
-    /**
-     * Deletes a task by either ID or Tripcode
-     * NOTE: This does not remove any entries that are still in the 'tags' table
-     * 
-     * @param type $delType
-     * @param array $input 
-     */
-    public function delTaskBy($delType, $input=array()) {
-        if(!is_array($input)) $input = array(); // Input array is always zero // It may still be used, in cases where we want to delete all post
-
-		$sql = array(); //initialize variables to prevent warnings
-		$sql_data = array();
-		$sql_type = array();
-		
-        switch($delType){
-            case 'Delete a post':    // $input <-- post ID
-				if ( !isset($input[0]) ) { echo "missing postID"; return;}
-                $s_id = $input[0]; //Input may be an empty array - $input[0] may not exist!
-                $sql[] = "DELETE FROM messages WHERE md5id = ?";
-				$data[] = array( $s_id );
-                $sql_data[] = array(
-                    'id' => $s_id,
-                );
-                $sql_type[] = array(
-                    'id' => 'INT'
-                );
-				
-                break;
-
-            case 'Delete all post by trip':    // $input <-- Tripcode name ##DANGER## This will delete everything done by a poster
-				if ( !isset($input[0]) ) { echo "missing UserID"; return;}
-				$s_pass = $input[0];
-                $sql[] = "DELETE FROM messages WHERE toid =  ?";
-				$sql_data[] = array(
-                    'tripcode' => $s_pass,
-                );
-                $sql_type[] = array(
-                    'tripcode' => 'STR'
-                );
-                break;
-
-            case 'Delete single task with normal password': // $input <-- Task ID, Task Password
-				if ( !isset($input[0]) or !isset($input[1]) ) { echo "missing UserID or PostID"; return;}
-			    $s_ID = $input[0];
-                $s_pass = $input[1] ;
-                $sql[] = "DELETE FROM messages WHERE toid = ? AND md5id= ?";
-				$sql_data[] = array(
-                    'id' => $s_ID,
-                    'tripcode' => $s_pass,
-                );
-                $sql_type[] = array(
-                    'id' => 'INT',
-                    'tripcode' => 'STR'
-                );
-                break;
-            
-            default:
-                echo '\n No action taken as there was an unknown delete option chosen for delTaskBy()\n';
-                break;
-        }
-		     
-		//Why don't you run the queries immediately after constructing them? Or use an associative array like
-		//array(
-		//  array('sql' => 'DELETE ...', data => array($s_ID), 'type' => array('INT')),
-		//  array('sql' => 'DELETE ...', data => array($s_ID), 'type' => array('INT')),
-		//);
-		// GOOD POINT!
-        try {
-            foreach($sql as  $row_num => $s) {
-                Database::query($s,$sql_data[$row_num],$sql_type[$row_num]);
-                echo 'Delete command sent';
-            }
-        } catch(PDOException $e) {
-            echo $e;
-            echo 'Delete Operation failed, did you get your password wrong?';
-        }
     }
 	
     /**
@@ -267,13 +304,14 @@ class anonyPM {
 		exit;
 		}
 		
+
     /**
-     * Get a list of messages (optional tag search)
-     * 
-     * @param array $tags
-     * @param type $limit
-     * @return type 
-     */
+* Get a list of messages (optional tag search)
+*
+* @param array $tags
+* @param type $limit
+* @return type
+*/
     public function getmessages($toID_array=array(),$fromID_array=array(), $postid=NULL, $mode="show sent post", $limit=50){
 		/*
 			Prepare toID
@@ -323,12 +361,15 @@ class anonyPM {
 		
 		//Might be better to use placeholders instead of inline variables in the above IN conditions e.g. the '?' vars.
         /*Would use this except sqlite doesnt support it... : OUTER JOIN tags ON messages.id = tags.task_id */
-        $sql = "SELECT *
-            FROM messages
-            WHERE
-            $sql_where_hashid
-            ORDER BY created DESC
-            LIMIT ?";
+        $sql = "SELECT 
+						* ,	CASE WHEN usersonline.userA > 0 THEN 'online' ELSE 'offline' END AS onlinestatus
+						-- for case, we are checking if userA is NULL. NULL = false
+					FROM 
+						messages LEFT OUTER JOIN usersonline ON messages.fromID = usersonline.userA
+					WHERE
+					$sql_where_hashid
+					ORDER BY created DESC
+					LIMIT ?";
 
         try {
             $rs = Database::query($sql, array($limit) , array("INT") );
@@ -478,6 +519,22 @@ thumbnail BLOB,
 imagetype VARCHAR(100),
 file BLOB,
 filename VARCHAR(100)
+);
+SQL;
+
+		$sql[] = <<<SQL
+CREATE TABLE IF NOT EXISTS usersonline ( 
+userA VARCHAR(500) PRIMARY KEY,
+timestamp INT
+);
+SQL;
+
+		$sql[] = <<<SQL
+CREATE TABLE IF NOT EXISTS openedimwindow ( 
+id $autoIncrementSyntax,
+userA VARCHAR(500),
+userB VARCHAR(500),
+timestamp INT
 );
 SQL;
 

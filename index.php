@@ -16,49 +16,7 @@ require_once("Database.php");
 require_once("anonyPM.php");
 require_once("anonregkit.php");
 
-/*
-	setup session
-*/
 
-// session system to help store not yet approved 'files'
-// or images, while capcha is being processed.
-ini_set("session.use_cookies",0	);
-ini_set("session.use_only_cookies",0);
-//ini_set("session.use_trans_sid",1);
-
-// grab session id
-if(isset($_GET['PHPSESSID'])){
-	session_start($_GET['PHPSESSID']);
-} else {
-	session_start();
-}
-
-// Checked if its first time logged in, or is inactive for too long
-if( !isset($_SESSION['loggedin']) or !isset($_SESSION['expiry']) or ($_SESSION['expiry']<time()) ){
-    $_SESSION['loggedin'] = false;
-} else if (isset($_SESSION['loggedin']) AND ($_SESSION['loggedin'] == true)) {
-	$_SESSION['expiry'] = strtotime( "+1 hour" , time() );
-}
-
-/*
-	Dedicated Session function. Used to work out if session ID should be inserted into URL
-*/
-function __loggingIn($userHashID) {
-	$_SESSION['loggedin'] = true;
-	$_SESSION['expiry'] = strtotime( "+1 hour" , time() );
-	$_SESSION['userID'] = $userHashID[0];
-	$_SESSION['userID_perm'] = $userHashID; //userID_permutations
-	return true;
-}
-
-function __SID_URL($mode="onlogin") {
-	if($mode == "onlogin"){
-		if( !isset($_SESSION['loggedin']) or !($_SESSION['loggedin'] == true) ){
-			return "";
-		}
-	}
-	return "&".htmlspecialchars(SID);
-}
 
 
 
@@ -75,7 +33,7 @@ function __hashID($user,$password="") {
 	$user = addslashes($user);
 	$password = addslashes($password);
 	// enforce alphanumeric answer for user, to prevent stuff like $user="badcode!sef32fw3"
-	$user = PREG_REPLACE("/[^0-9a-zA-Z]/i", '', $user);
+	$user = PREG_REPLACE("/[^0-9a-zA-Z@\.]/i", '', $user);
 	
 	$posthashed = hash("sha256",$user.$__salt.$password.$__salt);
 	//password only hash will always have a '!' in front of it, to prevent people from typing the hash in the username
@@ -94,13 +52,34 @@ function __hashID($user,$password="") {
 	return $hashIDstrings;
 }
 
+function __hashID_as_perm($fullHashID) {
+	// enforce alphanumeric answer for fromID, to prevent stuff like $fromID="badcode!sef32fw3"
+	$fullHashID = PREG_REPLACE("/[^0-9a-zA-Z@\.!]/i", '', $fullHashID);
+	$senderIDparts = explode('!', $fullHashID);
+	// generate permutations of the sender's id.
+	// senderIDparts[1]-password ; senderIDparts[0] -username
+	$sender_array = array();
+	if( isset($senderIDparts[1]) and $senderIDparts[1] != "" ){
+		for( $i = strlen($senderIDparts[1]) ; $i>=0 ; $i-- ){
+			$sender_array[] = $senderIDparts[0]."!".substr($senderIDparts[1],0,$i);
+		}
+		$sender_array[] = $senderIDparts[0];
+	}else {
+		$sender_array[] = $senderIDparts[0];
+	}
+	//return permutations
+	return $sender_array;
+}
+
 // This function is to help assist in visual IDing of names.
 function __colourHash($content, $size=3){
-	$hash = hash("sha256",$content); $hash2 = hash("sha256",$content."!");
+	$hash1 = md5($content); $hash2 = md5($content."!"); $hash3 = md5($content."#");
 	$string = "";
-	for($i=0; $i<($size%6); $i++){
-		$colorHash1 = substr($hash,$i*6,6); $colorHash2 = substr($hash2,$i*6,6);
-		$string .= "<span style='background-color:#$colorHash1;color:#$colorHash2;font-weight:bold;'>=</span>";
+	for($i=0; $i<$size; $i++){
+		$colorHash1 = "#".substr($hash1,$i*6,6); 
+		$colorHash2 = "#".substr($hash2,$i*6,6); 
+		$colorHash3 = "#".substr($hash3,$i*6,6);
+		$string .= "<span style='color:$colorHash1; background-color:$colorHash1; border-bottom:2px solid $colorHash2;border-top:2px solid $colorHash3;'>_</span>";
 	}	
 	return $string;
 }
@@ -136,9 +115,17 @@ function __colourHash($content, $size=3){
 			
 			//Display fromID if defined
 			if(isset($msg['fromID']) AND ($msg['fromID'] != "")){
-				$fromIDdisplay = "From: ".substr(htmlentities(stripslashes($msg['fromID']),null, 'utf-8'),0,50)."... 
+				/* Display online status*/
+				if ($msg['onlinestatus'] == 'online'){
+					$onlinestatus = "<b>".$msg['onlinestatus']."</b>";
+				} else {
+					$onlinestatus = $msg['onlinestatus'];
+				}
+				/* Display fromID info*/
+				$fromIDdisplay = "From: ".substr(htmlentities(stripslashes($msg['fromID']),null, 'utf-8'),0,30)."... 
 								(<a href='?x=PAGE+writemessage&to=". htmlentities(urlencode($msg['fromID']),null, 'utf-8')."&from=". htmlentities(urlencode($currUserID),null, 'utf-8')."' target='_blank'>Reply</a>) 
 								(<a target='_top' href='?x=convo&fromID=".$msg['fromID'].__SID_URL()."#".$msg['md5id']."' >View Thread</a>)
+								-- $onlinestatus 
 								<br/>
 								";
 			}else{
@@ -156,7 +143,7 @@ function __colourHash($content, $size=3){
 										
 					<div style='padding:20px' class='title'>
 						<p>".__colourHash($msg['fromID'])." --> ".__colourHash($msg['toID'])."</p>
-						To: ".substr(htmlentities($msg['toID'],null, 'utf-8'),0,50)."...
+						To: ".substr(htmlentities($msg['toID'],null, 'utf-8'),0,30)."...
 						<br/>
 						$fromIDdisplay
 						<p class='message'>Message: ".__cut_text( htmlentities($msg['message'],null, 'utf-8') , 500 )."
@@ -204,8 +191,14 @@ function __colourHash($content, $size=3){
 			
 			//Display fromID if defined
 			if(isset($msg['fromID']) AND ($msg['fromID'] != "")){
-			
-				$fromIDdisplay = "<p>From: ".htmlentities(stripslashes($msg['fromID']),null, 'utf-8')." (<a href='?x=PAGE+writemessage&to=".htmlentities(urlencode($msg['fromID']),null, 'utf-8')."&from=".htmlentities(urlencode($currUserID),null, 'utf-8')."' target='_blank'>Reply</a>) </p>";
+				/* Display online status*/
+				if ($msg['onlinestatus'] == 'online'){
+					$onlinestatus = "<b>".$msg['onlinestatus']."</b>";
+				} else {
+					$onlinestatus = $msg['onlinestatus'];
+				}
+				/* Display fromID info */
+				$fromIDdisplay = "<p>From: ".htmlentities(stripslashes($msg['fromID']),null, 'utf-8')." (<a href='?x=PAGE+writemessage&to=".htmlentities(urlencode($msg['fromID']),null, 'utf-8')."&from=".htmlentities(urlencode($currUserID),null, 'utf-8')."' target='_blank'>Reply</a>) -- $onlinestatus </p>";
 			}else{
 				$fromIDdisplay = "<p>From: Anonymous (No Address)</p>";
 			}
@@ -259,6 +252,51 @@ $board = new anonyPM();
 $mode = array();
 
 /*
+	setup session
+*/
+// session system to help store not yet approved 'files'
+// or images, while capcha is being processed.
+ini_set("session.use_cookies",0	);
+ini_set("session.use_only_cookies",0);
+//ini_set("session.use_trans_sid",1);
+
+// grab session id
+if(isset($_GET['PHPSESSID'])){
+	session_start($_GET['PHPSESSID']);
+} else {
+	session_start();
+}
+
+// Checked if its first time logged in, or is inactive for too long
+if( !isset($_SESSION['loggedin']) or !isset($_SESSION['expiry']) or ($_SESSION['expiry']<time()) ){
+    $_SESSION['loggedin'] = false;
+} else if (isset($_SESSION['loggedin']) AND ($_SESSION['loggedin'] == true)) {
+	// if logged in, then update expiry time and also check into sql status table
+	$_SESSION['expiry'] = strtotime( "+1 hour" , time() );
+	$board->isOnlineUpdate($_SESSION['userID_perm']);
+}
+
+/*
+	Dedicated Session function. Used to work out if session ID should be inserted into URL
+*/
+function __loggingIn($userHashID) {
+	$_SESSION['loggedin'] = true;
+	$_SESSION['expiry'] = strtotime( "+1 hour" , time() );
+	$_SESSION['userID'] = $userHashID[0];
+	$_SESSION['userID_perm'] = $userHashID; //userID_permutations
+	return true;
+}
+
+function __SID_URL($mode="onlogin") {
+	if($mode == "onlogin"){
+		if( !isset($_SESSION['loggedin']) or !($_SESSION['loggedin'] == true) ){
+			return "";
+		}
+	}
+	return "&".htmlspecialchars(SID);
+}
+
+/*
 	Read and Execute commands from x
 */
 
@@ -272,11 +310,6 @@ $query = isset($_GET['x']) ? $_GET['x'] : ' ';
 $query_parts = explode(' ', trim($query, ' '));
 
 switch(strtolower($query_parts[0])){
-	// setup sql table (run first)
-	case 'init':
-		if (!$__initEnable) {echo 'Permission Denied. init command disabled';exit;}
-        $board->initDatabase();
-		break;
 		
 	case 'logout':
 		$_SESSION['loggedin'] = NULL;
@@ -325,21 +358,21 @@ switch(strtolower($query_parts[0])){
 			{$fromID=NULL;}
 			
 		//Grab message content
-		if(isset($query_parts[3]))
+		if( isset($query_parts[3]) and ($query_parts[3] != ""))
 			{
 				$msg = "";
 				for( $i = 3 ; isset($query_parts[$i]) ; $i++){
 					$msg = $msg.$query_parts[$i]." ";
 				}
 			}
-		else if(isset($_POST['message']))
+		else if(isset($_POST['message']) and ($_POST['message'] != ""))
 			{$msg=$_POST['message'];}
 		else
 			{echo "Must have a message";exit;}
 		
 		// Filter out any non alphanumeric entry in (receiver) or (sender)
-		$fromID = PREG_REPLACE("/[^0-9a-zA-Z!]/i", '', $fromID);
-		$toID = PREG_REPLACE("/[^0-9a-zA-Z!]/i", '', $toID);
+		$fromID = PREG_REPLACE("/[^0-9a-zA-Z@\.!]/i", '', $fromID);
+		$toID = PREG_REPLACE("/[^0-9a-zA-Z@\.!]/i", '', $toID);
 		
 		$newMsgID = $board->sendmsg($fromID, $toID, $msg, $imageBinary = NULL, $fileBinary = NULL);
 		//echo "msgID: ".$newMsgID."<br>";
@@ -354,8 +387,6 @@ switch(strtolower($query_parts[0])){
 			{$username=$_POST['user'];}
 		else
 			{$username="";}
-		// enforce alphanumeric answer for user, to prevent stuff like $user="badcode!sef32fw3"
-		$username = PREG_REPLACE("/[^0-9a-zA-Z]/i", '', $username);
 		
 		if(isset($query_parts[2]))
 			{$password=$query_parts[2];}
@@ -375,6 +406,7 @@ switch(strtolower($query_parts[0])){
 		} else {
 			$hashid_array = __hashID($username,$password);
 			__loggingIn($hashid_array);
+			$board->isOnlineUpdate($_SESSION['userID_perm']);
 
 		}
 				
@@ -402,29 +434,15 @@ switch(strtolower($query_parts[0])){
 			/*
 				obtain and prepare the fromID variable from user
 			*/
-			if(!isset($_GET['fromID'])) {die("lacking fromID");}
-			// enforce alphanumeric answer for fromID, to prevent stuff like $fromID="badcode!sef32fw3"
-			$_GET['fromID'] = PREG_REPLACE("/[^0-9a-zA-Z!]/i", '', $_GET['fromID']);
-			$senderIDparts = explode('!', $_GET['fromID']);
-			// generate permutations of the sender's id.
-			// senderIDparts[1]-password ; senderIDparts[0] -username
-			$sender_array = array();
-			if( isset($senderIDparts[1]) and $senderIDparts[1] != "" ){
-				for( $i = strlen($senderIDparts[1]) ; $i>=0 ; $i-- ){
-					$sender_array[] = $senderIDparts[0]."!".substr($senderIDparts[1],0,$i);
-				}
-				$sender_array[] = $senderIDparts[0];
-			}else {
-				$sender_array[] = $senderIDparts[0];
-			}
+			if( !isset($_GET['fromID']) ) { die("lacking fromID"); }
+			$sender_array = __hashID_as_perm($_GET['fromID']);
 			
 			/*
 				Grab the post
 			*/
 			// toid are addressed to 'you', while fromid is from sender.
 			$msgs = $board->getmessages($hashid_array, $sender_array, $postid, "show sent post");
-				
-			$mode = array('convo');
+			$mode[] = 'convo';
 
 		} else {
 			echo "Who are you? You are not logged in. I don't know you.";
@@ -476,6 +494,11 @@ switch(strtolower($query_parts[0])){
 		
 		$msgs = $board->delete($hashid_array, NULL, NULL, "all sent post as well");
 		echo "Inbox totally, totally cleared";
+		break;
+		
+	case 'whoisonline':
+		$msgs = $board->getstatus(array(), "isonline", 100);
+			var_dump( $msgs );
 		break;
 
 	default:

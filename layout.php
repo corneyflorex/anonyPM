@@ -55,7 +55,7 @@
 		<?php } ?>
 	
 		<!-- header Page -->
-		<?php if (!in_array("home", $mode)) { ?>
+		<?php if (!( in_array("home", $mode) or in_array("noheader", $mode) ) ) { ?>
 		
 		<div class="cloudbox" style="margin: 0 auto; width:100%; padding-top:20px; padding-bottom:20px; ">
 			<a href="?<?php echo __SID_URL()?>" ><h1>AnonyPM</h1></a> No registration required
@@ -75,17 +75,24 @@
 					<br>
 					<h3 style="text-align:center;" >Your full AnonyPM Address is:</h3>
 					<h4><?php echo  __colourHash($_SESSION['userID'])." ".htmlentities($_SESSION['userID']);?></h3>
-					<h5><a href='?x=PAGE+writemessage&to=<?php echo  htmlentities(urlencode($_SESSION['userID']));?>' target='_blank'>Give this url to other people, so they can reach you.</a></h5>
+					<h5><a href='?x=PAGE+writemessage&to=<?php echo  htmlentities(urlencode($_SESSION['userID']));?>' target='_blank'>Give this url to other people, so they can message you</a> | <a href='?x=imtalk&userB=<?php echo  htmlentities(urlencode($_SESSION['userID']));?>' target='_blank'>Share this link for Instant Messaging.</a></h5>
+					<div>
+						<iframe style="float:right; margin: 5px; border-style:none; overflow-y: scroll; overflow-x: hidden;" src="?x=notification<?php echo __SID_URL()?>" width="300px" height="80px">
+							<p>Your browser does not support iframes. SOOOO Therefor you cannot use IM ;_; </p>
+						</iframe> 
+					</div>
 					<?php
 						$userIDparts = explode('!', $_SESSION['userID']);
 						if(isset($userIDparts[1])){ 
 							$userid_lv1 = $userIDparts[0]."!".substr($userIDparts[1],0,10);
 							echo "<div style='padding:20px; text-align:left; ' >";
 							echo "Also valid: ";
-							echo __colourHash($userid_lv1)." (<a href='?x=PAGE+writemessage&to=".$userid_lv1."' target='_blank'>share url</a>) ".$userid_lv1."<br>";
+							echo __colourHash($userid_lv1)." ( <a href='?x=PAGE+writemessage&to=".$userid_lv1."' target='_blank'>PM</a> | <a href='?x=imtalk&userB=".$userid_lv1."' target='_blank'>IM</a> ) ".$userid_lv1."<br>";
 							echo "</div>";
 						}
 					?>
+					<div style="clear:both;"></div>
+
 				</div>			 
 		<?php 
 			}
@@ -198,6 +205,27 @@
 				</p>
 			</a>
 		<?php } ?>
+		
+		<!-- Instant Messaging Window -->
+		<?php if (in_array("imtalk", $mode)) { ?>
+		<div class="cloudbox"  style="margin: 0 auto; width:100%; padding-top:10px; padding-bottom:10px; ">
+			<p>
+				<?php echo "You: ".__colourHash($userA).htmlentities(stripslashes(substr($userA,0,20)))."..."; ?>
+				<?php echo "<br> are talking to : ".__colourHash($userB).htmlentities(stripslashes(substr($userB,0,20)))."..."; ?>
+			</p>
+			<p>
+				<FORM action='?x=imtalk<?php echo "&userA=".htmlentities($userA)."&userB=".htmlentities($userB).__SID_URL()?>' method='post'>		
+					MSG: <INPUT type='text' size='90%' name='message' autofocus />
+					<!-- <textarea rows="2" cols="90%" name='message' autofocus ></textarea> -->			
+					<INPUT type='submit' value='Send'>
+				</FORM>
+			</p>
+			<iframe src="?x=imtalk&displaymode=msgdisplay<?php echo htmlentities("&userA=".urlencode($userA)."&userB=".urlencode($userB)).__SID_URL()?>" width="100%" height="1000">
+			  <p>Your browser does not support iframes. SOOOO Therefor you cannot use IM ;_; </p>
+			</iframe> 
+		</div>
+		<?php } ?>
+		<!-- Instant Messaging Window -->
 		
 		<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
 		

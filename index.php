@@ -65,6 +65,7 @@ function __hashID_as_perm($fullHashID) {
 		}
 		$sender_array[] = $senderIDparts[0];
 	}else {
+		$sender_array[] = $senderIDparts[0]."!";
 		$sender_array[] = $senderIDparts[0];
 	}
 	//return permutations
@@ -115,12 +116,16 @@ function __colourHash($content, $size=3){
 			
 			//Display fromID if defined
 			if(isset($msg['fromID']) AND ($msg['fromID'] != "")){
+				/* Display IM contact link */
+					$IMlink = "?x=imtalk&userA=".htmlentities(urlencode($msg['toID']))."&userB=".htmlentities(urlencode($msg['fromID'])).__SID_URL();
+					
 				/* Display online status*/
 				if ($msg['onlinestatus'] == 'online'){
-					$onlinestatus = "<b>".$msg['onlinestatus']."</b>";
+					$onlinestatus = "<a href='".$IMlink."' ><b>".$msg['onlinestatus']."</b></a>";
 				} else {
-					$onlinestatus = $msg['onlinestatus'];
+					$onlinestatus = "<a href='".$IMlink."' >".$msg['onlinestatus']."</a>";
 				}
+
 				/* Display fromID info*/
 				$fromIDdisplay = "From: ".substr(htmlentities(stripslashes($msg['fromID']),null, 'utf-8'),0,30)."... 
 								(<a href='?x=PAGE+writemessage&to=". htmlentities(urlencode($msg['fromID']),null, 'utf-8')."&from=". htmlentities(urlencode($currUserID),null, 'utf-8')."' target='_blank'>Reply</a>) 
@@ -374,7 +379,8 @@ switch(strtolower($query_parts[0])){
 		$fromID = PREG_REPLACE("/[^0-9a-zA-Z@\.!]/i", '', $fromID);
 		$toID = PREG_REPLACE("/[^0-9a-zA-Z@\.!]/i", '', $toID);
 		
-		$newMsgID = $board->sendmsg($fromID, $toID, $msg, $imageBinary = NULL, $fileBinary = NULL);
+		//send the message to the recipent
+		$newMsgID = $board->sendmsg($fromID, $toID, $msg, "pm", $imageBinary = NULL, $fileBinary = NULL);
 		//echo "msgID: ".$newMsgID."<br>";
 		echo htmlentities("To: $toID", null, 'utf-8')."<br>".htmlentities("From: $fromID", null, 'utf-8')."<br>".htmlentities("msg: $msg", null, 'utf-8');
 		break;
@@ -404,13 +410,14 @@ switch(strtolower($query_parts[0])){
 				exit;
 			}
 		} else {
+			// now logging in to a new account
 			$hashid_array = __hashID($username,$password);
 			__loggingIn($hashid_array);
 			$board->isOnlineUpdate($_SESSION['userID_perm']);
 
 		}
 				
-		$msgs = $board->getmessages($hashid_array);
+		$msgs = $board->getmessages($hashid_array, NULL, NULL, NULL, 50, 'pm');
 				
 		// Show inbox layout
 		$mode = array('inbox');
@@ -496,10 +503,207 @@ switch(strtolower($query_parts[0])){
 		echo "Inbox totally, totally cleared";
 		break;
 		
+	// Debug purpose, you might want to remove in the finished version. It shows who is logged in.
 	case 'whoisonline':
 		$msgs = $board->getstatus(array(), "isonline", 100);
-			var_dump( $msgs );
+		var_dump( $msgs );
 		break;
+		
+	/* IM COMMANDS - for instant messaging purpose - must be in a logged in session*/
+	
+	case 'notification': // polling for people who wants to talk.
+		// who (userB) is trying to reach you? 
+		if ( isset($_SESSION['userID_perm']) ){
+			$msgs = $board->getstatus($_SESSION['userID_perm'], "windowopen", 100);
+			// Show message when empty
+			if ( empty($msgs) ){
+					$DisplayContent = "<h5>No Incoming IM Session</h5>";
+			} else {
+			// if not empty, then show who wants to talk to you
+				$DisplayContent = "";
+				foreach($msgs as $msg){
+					/* Display IM contact link */
+					$IMlink = "?x=imtalk&userA=".htmlentities(urlencode($msg['userA']))."&userB=".htmlentities(urlencode($msg['userB'])).__SID_URL();
+					/* Display IM notification*/
+					$DisplayContent = $DisplayContent."
+						<div class='cloudbox' style='text-align:left; padding:5px; font-size:12px' >
+							".__colourHash($msg['userB'])." - <a href='$IMlink' target='_blank'>".htmlentities(stripslashes(substr($msg['userB'],0,20)))." | ".__humanTiming ($msg['timestamp'])." ago	</a>
+						</div>";
+				};
+			}
+			
+			echo '
+			<!DOCTYPE html PUBLIC "-//IETF//DTD HTML 2.0//EN">
+			<html>
+			 <head>
+				<style type="text/css">
+					body{
+					color:grey;
+					}
+				</style>
+				<META HTTP-EQUIV="Refresh" CONTENT="15;"> <!-- refresh page with latest message -->
+			 </head>
+			 <body>
+			 <span style = "size:1em" >Instant Messaging Notification<span>
+			';
+			echo $DisplayContent;
+			echo '
+			 </body>
+			</html>
+			';
+			
+		} else {
+			echo "You are not logged in";
+		}
+		exit;
+		break;
+	
+	case 'imtalk': // open window to a contact
+		
+		/*
+			if userA is not defined, then make a temporary username, and log into that user
+		*/
+		if( !isset($_REQUEST['userA']) ){
+			// generate new random password
+			$username = "Anonymous";
+			$password = uniqid("notregistereduser").rand();
+			// now logging in to a new account
+			$hashid_array = __hashID($username,$password);
+			__loggingIn($hashid_array);
+			$board->isOnlineUpdate($_SESSION['userID_perm']);
+			// let user know whats the new password is
+			echo "This is a temporary anonymous account. Choose a new one at <a href='?' target='_blank'>Home Site</a>";
+			// put userA into $_REQUEST['userA']
+			$_REQUEST['userA'] = $_SESSION['userID'];
+		}
+		
+		/*
+			setup IM
+		*/
+		if( isset($_REQUEST['userA'],$_REQUEST['userB']) ){
+			$userA=$_REQUEST['userA']; 
+			$userB=$_REQUEST['userB'];
+		} else {
+			die("userA and userB not defined");
+		}
+		
+		// Filter out any non alphanumeric (but allow for email characters entry in (userA/me) or (userB/them)
+		$userA = PREG_REPLACE("/[^0-9a-zA-Z@\.!]/i", '', $userA);
+		$userB = PREG_REPLACE("/[^0-9a-zA-Z@\.!]/i", '', $userB);
+		
+		/*
+			Confirm that userA belongs to currenly logged in	
+		*/
+		$flag_userAcheck = false;
+		if ( isset($_SESSION['userID_perm']) ){
+			// check if userA address belongs to currenly logged in user.
+			foreach( $_SESSION['userID_perm'] as $key => $value ){
+				if( $userA == $value ){
+					$flag_userAcheck = true;
+				}
+			}
+			// die if claimed nick is not correct
+			if ( $flag_userAcheck == false ) {
+				die('You do not own the address you claim to be from');
+			}
+		} else {
+			die('not logged in');
+		}
+
+		/*
+			Send IM only if there is a message
+		*/
+		if(isset($_POST['message']) and ($_POST['message'] != "")){
+			$newMsgID = $board->sendmsg($userA, $userB, $_POST['message'], 'im');
+		}
+		
+		/*
+									IM WINDOW STATUS UPDATOR
+			Update status to tell target that we are attempting to talk to them
+			openedWindowIM_Update($targetuser,$instigator)
+			where $userA = me, $userB = them. Hence $userA = instigator and $userB = targetuser
+		*/
+		$board->openedWindowIM_Update($userB,$userA);
+		
+		/*
+									DISPLAY MODE
+			Mode 
+			IMWindow (default) :- it contains the messaging box and some info about the convo.
+									As well as an iframe of msgdisplay
+			msgdisplay :- is embedded in IMwindow and shows latest message that was sent.
+		*/
+		if ( isset($_GET['displaymode']) and $_GET['displaymode'] == 'msgdisplay'){
+			$msgs = $board->getmessages($_SESSION['userID_perm'], __hashID_as_perm($userB), NULL, "show sent post",10);
+			
+			// Generate the message content holder
+			$DisplayContent = "";
+			foreach($msgs as $msg){
+				//Display fromID if defined
+				if(isset($msg['fromID']) AND ($msg['fromID'] != "")){
+					/* Display online status*/
+					if ($msg['onlinestatus'] == 'online'){
+						$onlinestatus = "<b>".$msg['onlinestatus']."</b>";
+					} else {
+						$onlinestatus = $msg['onlinestatus'];
+					}
+					/* Display fromID info */
+					$fromIDdisplay = htmlentities(stripslashes(substr($msg['fromID'],0,20)),null, 'utf-8')."... ($onlinestatus):";
+				}else{
+					$fromIDdisplay = "ANON:";
+				}
+				$DisplayContent = $DisplayContent."
+					<div class='cloudbox' style='text-align:left; padding:10px' >
+						".__colourHash($msg['fromID'])." $fromIDdisplay
+						<span style='display: inline-block; text-align:left; padding:10px' class='title'>
+							<span class='message'>".nl2br(
+															__encodeTextStyle(htmlentities( $msg['message'] ,null, 'utf-8'))
+															)."
+							</span>
+							<span style='size:10px' class='timeago'>
+								| ".__humanTiming ($msg['created'])." ago	
+							</span>	
+						</span>
+					</div>";
+			};
+			
+			//render html
+			echo '
+			<!DOCTYPE html PUBLIC "-//IETF//DTD HTML 2.0//EN">
+			<html>
+			 <head>
+				<style type="text/css">
+					body{
+					background-color:lightgrey;
+					}
+				</style>
+				<META HTTP-EQUIV="Refresh" CONTENT="5;"> <!-- refresh page with latest message -->
+			 </head>
+			 <body>
+			';
+			echo $DisplayContent;
+			echo '
+			 </body>
+			</html>	
+			';
+			
+			exit; // We dont want to show the full layout, only the messages
+		} else {
+			// Show the layout for chatting
+			/*
+				<form>
+				</form>
+				
+				<iframe href='?x=imtalk&userA=?&userB' ></iframe>
+			*/
+			$mode[] = 'imtalk';
+			$mode[] = 'noheader';
+			
+			// We do not want any default windows to show up in our layout so we shall just load this up immedately,
+			// and get out
+			require("layout.php");
+			exit;
+		}
+		break;	
 
 	default:
 		$mode = array('home');

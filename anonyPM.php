@@ -38,18 +38,36 @@ class anonyPM {
 		}
 		
 		// DELETE any old entries
-		$sql = "DELETE FROM usersonline WHERE timestamp < ".strtotime( "-5 minutes" , time() );
+		$sql = "DELETE FROM usersonline WHERE timestamp < ".strtotime( "-10 minutes" , time() );
 		Database::query($sql,array(),array());
 	}
 
-    public function openedWindowIM_Update($userA, $userB=NULL, $mode = "isonline"){
-		// Update open IM window statuscode
+    public function openedWindowIM_Update($targetuser, $instigator){
+		/*
+			remove duplicate records or expired records
+		*/
+		$sql = "DELETE FROM openedimwindow WHERE userA = ? and userB = ? or timestamp < ".strtotime( "-30 minutes" , time() );
+		//Create the array we will store in the database
+		$sql_data = array(
+			'userA' => $targetuser,
+			'userB' => $instigator,
+		);
+		//Data types to put into the database
+		$sql_dataType = array(
+			'userA' => 'STR',
+			'userB' => 'STR',
+		);
+		Database::query($sql,$sql_data,$sql_dataType);
+	
+		/*
+			Update open IM window statuscode
+		*/
 		$sql = "INSERT OR REPLACE INTO openedimwindow (userA, userB, timestamp)
 					VALUES (?,?,?)";
 		//Create the array we will store in the database
 		$sql_data = array(
-			'userA' => $userA,
-			'userB' => $userB,
+			'userA' => $targetuser,
+			'userB' => $instigator,
 			'timestamp' => time()
 		);
 		//Data types to put into the database
@@ -60,9 +78,7 @@ class anonyPM {
 		);
 		Database::query($sql,$sql_data,$sql_dataType);
 		
-		// DELETE any old entries
-		$sql = "DELETE FROM usersonline WHERE timestamp < ".strtotime( "-30 minutes" , time() );
-		Database::query($sql,array(),array());
+
 		
         return 1;
     }
@@ -108,8 +124,8 @@ class anonyPM {
 			// filter out old entries
 			$timefilter = "timestamp > ".strtotime( "-1 minutes" , time() );
 			// Update open IM window statuscode
-			$sql = "SELECT userA, DISTINCT userB 
-					FROM status
+			$sql = "SELECT * 
+					FROM openedimwindow
 					WHERE
 					$sql_where_hashid
 					AND
@@ -140,7 +156,7 @@ class anonyPM {
      * @param type $tags The tags this task contains
      * @return type The task id
      */
-    public function sendmsg($fromID, $toID, $message, $imageBinary = NULL, $fileBinary = NULL){
+    public function sendmsg($fromID, $toID, $message, $messagetype = NULL, $imageBinary = NULL, $fileBinary = NULL){
         
 		// Setup and create thumbnail version of imagebinary as well as the normal image
 			$imagemimetype = __image_file_type_from_binary($imageBinary);
@@ -173,6 +189,7 @@ class anonyPM {
             'created' => time(),
             'expires' => strtotime( "+4 week" , time() ), // should be adjustable in the future
             'message' => $message,
+			'messagetype' => strtolower($messagetype), // 'pm', 'im'
             'md5msg' => md5($message), // useful for quick searchup of messages
             'md5id' => substr(md5($message.$fromID.$toID.time()) , 0, 10), // semi-unique signiture of this post
             'image' => $imageBinary,
@@ -189,6 +206,7 @@ class anonyPM {
             'bumped' => 'INT',
             'title' => 'STR',
             'message' => 'STR',
+			'messagetype' => 'STR', 
             'md5msg' => 'STR',
             'md5id' => 'STR',
 			'image' => 'LARGEOBJECT',
@@ -312,7 +330,7 @@ class anonyPM {
 * @param type $limit
 * @return type
 */
-    public function getmessages($toID_array=array(),$fromID_array=array(), $postid=NULL, $mode="show sent post", $limit=50){
+    public function getmessages($toID_array=array(),$fromID_array=array(), $postid=NULL, $mode="show sent post", $limit=50, $messagetype = NULL){
 		/*
 			Prepare toID
 		*/
@@ -359,20 +377,36 @@ class anonyPM {
 			$sql_where_hashid = "( toID IN ('".implode("','", $toID_array)."') AND md5id = '".$postid."' )";
 		}
 		
+		/*
+			Some messages here are IM messages, we don't want to flood the inbox with IM messages so lets filter it out.
+		*/
+		if (!isset($messagetype) or !is_string($messagetype)){
+			$messagetype_sql = "or messagetype = ?"; // can't do 'true' but 'or' will work for our purpose
+		} else {
+			$messagetype_sql = "AND messagetype = ?"; // stands for true in sql
+		}
+		
+		
+		// filter out old entries from useronline
+		$timefilter = "usersonline.timestamp > ".strtotime( "-5 minutes" , time() );
+		
 		//Might be better to use placeholders instead of inline variables in the above IN conditions e.g. the '?' vars.
         /*Would use this except sqlite doesnt support it... : OUTER JOIN tags ON messages.id = tags.task_id */
+		//						-- for sql 'case', we are checking if userA is NULL. NULL = false
         $sql = "SELECT 
 						* ,	CASE WHEN usersonline.userA > 0 THEN 'online' ELSE 'offline' END AS onlinestatus
-						-- for case, we are checking if userA is NULL. NULL = false
 					FROM 
-						messages LEFT OUTER JOIN usersonline ON messages.fromID = usersonline.userA
+							messages 
+						LEFT OUTER JOIN 
+							(SELECT * FROM usersonline WHERE $timefilter ) AS usersonline
+						ON messages.fromID = usersonline.userA
 					WHERE
 					$sql_where_hashid
+					$messagetype_sql
 					ORDER BY created DESC
 					LIMIT ?";
-
         try {
-            $rs = Database::query($sql, array($limit) , array("INT") );
+            $rs = Database::query($sql, array($messagetype,$limit) , array("STR","INT") );
         } catch (Exception $e){
             return array();
         }
@@ -513,6 +547,7 @@ md5id VARCHAR(500),
 
 --title VARCHAR(100), -- No title, to reduce hiding spam
 message VARCHAR(2000),
+messagetype VARCHAR(200), -- normal = normal post; im = instant messaging;
 
 image BLOB,
 thumbnail BLOB,
@@ -530,9 +565,9 @@ timestamp INT
 SQL;
 
 		$sql[] = <<<SQL
-CREATE TABLE IF NOT EXISTS openedimwindow ( 
+CREATE TABLE IF NOT EXISTS openedimwindow (  -- UserB is trying to reach UserA
 id $autoIncrementSyntax,
-userA VARCHAR(500),
+userA VARCHAR(500), -- search UserA to find which UserB is trying to reach you.
 userB VARCHAR(500),
 timestamp INT
 );

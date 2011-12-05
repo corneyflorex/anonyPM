@@ -511,6 +511,7 @@ switch(strtolower($query_parts[0])){
 		
 	// Debug purpose, you might want to remove in the finished version. It shows who is logged in.
 	case 'whoisonline':
+		if( $__debug == false ) { die("debug mode is off"); }
 		$msgs = $board->getstatus(array(), "isonline", 100);
 		var_dump( $msgs );
 		break;

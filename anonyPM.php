@@ -185,6 +185,7 @@ class anonyPM {
 			
 		// default expiry time
 		if ( isset($expiryset) ){
+			$expiryset = PREG_REPLACE("/[^0-9a-zA-Z@\.+ ]/i", '', $expiryset);
 			$expirytime = strtotime( $expiryset , time() );
 		} else {
 			$expirytime = strtotime( "+2 week" , time() );

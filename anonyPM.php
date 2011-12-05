@@ -156,7 +156,7 @@ class anonyPM {
      * @param type $tags The tags this task contains
      * @return type The task id
      */
-    public function sendmsg($fromID, $toID, $message, $messagetype = NULL, $imageBinary = NULL, $fileBinary = NULL){
+    public function sendmsg($fromID, $toID, $message, $messagetype = NULL, $expiryset = NULL, $imageBinary = NULL, $fileBinary = NULL){
         
 		// Setup and create thumbnail version of imagebinary as well as the normal image
 			$imagemimetype = __image_file_type_from_binary($imageBinary);
@@ -182,12 +182,20 @@ class anonyPM {
 				
 				imagedestroy($new); //?? do we really need to? - Probably not, but it might be good to do it anyway (may release some memory)
 			}else{$sBinaryThumbnail = NULL;}
+			
+		// default expiry time
+		if ( isset($expiryset) ){
+			$expirytime = strtotime( $expiryset , time() );
+		} else {
+			$expirytime = strtotime( "+2 week" , time() );
+		}
+		
 		//Create the array we will store in the database
         $data = array(
 			'fromID' => $fromID,
 			'toID' => $toID,
             'created' => time(),
-            'expires' => strtotime( "+4 week" , time() ), // should be adjustable in the future
+            'expires' => $expirytime, // should be adjustable in the future
             'message' => $message,
 			'messagetype' => strtolower($messagetype), // 'pm', 'im'
             'md5msg' => md5($message), // useful for quick searchup of messages
@@ -331,6 +339,13 @@ class anonyPM {
 * @return type
 */
     public function getmessages($toID_array=array(),$fromID_array=array(), $postid=NULL, $mode="show sent post", $limit=50, $messagetype = NULL){
+		
+		/*
+			Clear out any old expired messages
+		*/
+		$sql = "DELETE FROM messages WHERE expires < ".time();
+		Database::query($sql,array(),array());
+		
 		/*
 			Prepare toID
 		*/

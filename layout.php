@@ -133,8 +133,22 @@
 				<P>
 					Send To*:<br /> <INPUT type='text' size=50 name='to' value='<?php if(isset($_REQUEST['to'])){echo htmlentities($_REQUEST['to']);}?>'><br />
 					Sender ID or email (optional):<br /> <INPUT type='text' size=50 name='from' value='<?php if(isset($_REQUEST['from'])){echo htmlentities($_REQUEST['from']);}?>'><br />
-				
-					Message*:<br />	<textarea class='' rows=10 cols=50 name='message'><?php if(isset($_REQUEST['message'])){echo htmlentities($_REQUEST['message'],null, 'utf-8');}?></textarea><br />			
+					
+					Expiry Setting (optional):
+						<select name='expiryset' >
+						  <option value="+4 weeks">4 weeks</option>
+						  <option value="+4 weeks"></option>
+						  <option value="+1 hour">1 hour</option>
+						  <option value="+1 day">1 day</option>
+						  <option value="+1 week">1 week</option>
+						  <option value="+2 weeks">2 weeks</option>
+						  <option value="+4 weeks">4 weeks</option>
+						  <option value="+1 year">1 year</option>
+						  <option value="+60 seconds">60 sec</option>
+						</select>
+					<br />
+					
+					Message*:<br />	<textarea class='' rows=10 cols=50 name='message' autofocus><?php if(isset($_REQUEST['message'])){echo htmlentities($_REQUEST['message'],null, 'utf-8');}?></textarea><br />			
 					<!-- 
 					<label for='file'>Image:</label><br /> <input type='file' name='image' />
 					-->

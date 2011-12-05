@@ -362,6 +362,12 @@ switch(strtolower($query_parts[0])){
 		else
 			{$fromID=NULL;}
 			
+		// expiry setting
+		if(isset($_POST['expiryset']))
+			{$expiryset=$_POST['expiryset'];}
+		else
+			{$expiryset=NULL;}
+			
 		//Grab message content
 		if( isset($query_parts[3]) and ($query_parts[3] != ""))
 			{
@@ -380,7 +386,7 @@ switch(strtolower($query_parts[0])){
 		$toID = PREG_REPLACE("/[^0-9a-zA-Z@\.!]/i", '', $toID);
 		
 		//send the message to the recipent
-		$newMsgID = $board->sendmsg($fromID, $toID, $msg, "pm", $imageBinary = NULL, $fileBinary = NULL);
+		$newMsgID = $board->sendmsg($fromID, $toID, $msg, "pm", $expiryset);
 		//echo "msgID: ".$newMsgID."<br>";
 		echo htmlentities("To: $toID", null, 'utf-8')."<br>".htmlentities("From: $fromID", null, 'utf-8')."<br>".htmlentities("msg: $msg", null, 'utf-8');
 		break;
@@ -614,7 +620,7 @@ switch(strtolower($query_parts[0])){
 			Send IM only if there is a message
 		*/
 		if(isset($_POST['message']) and ($_POST['message'] != "")){
-			$newMsgID = $board->sendmsg($userA, $userB, $_POST['message'], 'im');
+			$newMsgID = $board->sendmsg($userA, $userB, $_POST['message'], 'im', '+3 days');
 		}
 		
 		/*
@@ -676,7 +682,7 @@ switch(strtolower($query_parts[0])){
 					background-color:lightgrey;
 					}
 				</style>
-				<META HTTP-EQUIV="Refresh" CONTENT="5;"> <!-- refresh page with latest message -->
+				<META HTTP-EQUIV="Refresh" CONTENT="6;"> <!-- refresh page with latest message -->
 			 </head>
 			 <body>
 			';

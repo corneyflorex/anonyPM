@@ -589,6 +589,8 @@ timestamp INT
 );
 SQL;
 
+/*			We are not using address book yet, this is the next feature we will be implementing
+
 		$sql[] = <<<SQL
 CREATE TABLE IF NOT EXISTS addressbook ( 
 id $autoIncrementSyntax,
@@ -600,6 +602,7 @@ torchat VARCHAR(200),
 email VARCHAR(200)
 );
 SQL;
+*/
 
 		$sql[] = <<<SQL
 CREATE TABLE IF NOT EXISTS settings ( 

@@ -32,7 +32,7 @@
 				<FORM action='?x=inbox<?php echo __SID_URL()?>' method="POST" enctype='multipart/form-data'>
 					<input type='text' name='user' value='' placeholder='Username'>
 					#
-					<input type='text' name='pass' value='' placeholder='Password'>
+					<input type='password' name='pass' value='' placeholder='Password'>
 					<br />
 					<INPUT type='submit' value='Enter Inbox'> 
 				</FORM>

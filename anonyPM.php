@@ -78,7 +78,7 @@ class anonyPM {
 		/*
 			Update open IM window statuscode
 		*/
-		$sql = "INSERT OR REPLACE INTO openedimwindow (userA, userB, timestamp)
+		$sql = "INSERT INTO openedimwindow (userA, userB, timestamp)
 					VALUES (?,?,?)";
 		//Create the array we will store in the database
 		$sql_data = array(

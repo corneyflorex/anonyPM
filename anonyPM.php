@@ -19,8 +19,24 @@ class anonyPM {
 	public function isOnlineUpdate( $userID_perm = array() ){
 	
 		foreach($userID_perm as $key => $hashID){
-			// Update online statuscode
-			$sql = "INSERT OR REPLACE INTO usersonline (userA, timestamp)
+			/*
+				remove duplicate records
+			*/
+			$sql = "DELETE FROM usersonline WHERE userA = ? ";
+			//Create the array we will store in the database
+			$sql_data = array(
+				'userA' => $hashID,
+			);
+			//Data types to put into the database
+			$sql_dataType = array(
+				'userA' => 'STR',
+			);
+			Database::query($sql,$sql_data,$sql_dataType);
+		
+			/*
+				Update online statuscode
+			*/
+			$sql = "INSERT INTO usersonline (userA, timestamp)
 						VALUES (?,?)
 						";
 			//Create the array we will store in the database

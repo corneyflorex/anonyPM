@@ -14,13 +14,13 @@
 	
 	// DATABASE CONFIG
 	// CHOOSE YOUR MODE
-	$settingMode = "sqlite";
+	$settingMode = "mysql";
 	// FILL YOUR DB SETTINGS HERE
 	switch($settingMode){
 		case "mysql":
 			$dbType		= "mysql";
 			$dbHost		= "localhost";
-			$dbName		= "taskboard";
+			$dbName		= "anonyPM";
 			$dbuser     = "root";
 			$dbpass     = "";
 			$dbConnection = "host=".$dbHost.";dbname=".$dbName;

@@ -561,7 +561,6 @@ expires INT ,
 md5msg VARCHAR(500),
 md5id VARCHAR(500),
 
---title VARCHAR(100), -- No title, to reduce hiding spam
 message VARCHAR(2000),
 messagetype VARCHAR(200), -- normal = normal post; im = instant messaging;
 
